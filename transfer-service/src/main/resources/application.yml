@@ -1,0 +1,91 @@
+spring: 
+  application: 
+    name: transfer-service
+  datasource: 
+    url: jdbc:postgresql://localhost:5432/ledger_db
+    username: ledger_user 
+    password: ledger_secret
+    hikari:
+      maximum-pool-size: 20 
+      minimum-idle: 5
+      connection-timeout: 3000
+      #crítico: define isolamento padrão para todas as conexões do pool
+      transaction-isolation: TRANSACTION_SERIALIZABLE
+  jpa:
+    hibernate: 
+      ddl-auto: validate  #flyway gerencia o schema
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc: 
+          batch_size: 25  #insert em batch para o Outbox
+        order_inserts: true
+        order_updates: true
+    show-sql: false  
+  kafka: 
+    bootstrap-servers: localhost:9092
+    producer: 
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all  #aguarda confirmação de todos os replicas
+      retries: 3
+      properties: 
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1 
+    consumer: 
+      group-id: transfer-service
+      auto-offset-reset: earliest 
+      enable-auto-commit: false  #controle manual do commit
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+ledger:
+  outbox:
+    polling-interval-ms: 100  
+    batch-size: 50  
+  idempotency:
+    ttl-hours: 24  
+  saga:
+    timeout-minutes: 30  
+    max-retries: 3
+    
+server: 
+  port: 8080
+
+management: 
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: http://localhost:9411/api/v2/spans
+
+resilience4j:
+  retry:
+    instances:
+      sagaOrchestrator:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - org.springframework.kafka.KafkaException
+          - java.net.ConnectException
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+          - java.lang.IllegalStateException
+  circuitbreaker:
+    instances:
+      sagaOrchestrator:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3

@@ -1,0 +1,24 @@
+# Maven
+target/
+*.class
+*.jar
+*.war
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# Spring
+application-local.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+postgres_data/
