@@ -35,7 +35,7 @@ spring:
       acks: all
 
 server:
-  port: 8082
+  port: 8084
 
 management:
   endpoints:
@@ -48,3 +48,12 @@ management:
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  show-actuator: true

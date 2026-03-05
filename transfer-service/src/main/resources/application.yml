@@ -53,7 +53,7 @@ ledger:
     max-retries: 3
     
 server: 
-  port: 8080
+  port: 8082
 
 management: 
   endpoints:
@@ -89,3 +89,12 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  show-actuator: true

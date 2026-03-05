@@ -1,7 +1,9 @@
 # 🏦 Financial Ledger Distribuído
+
 > Sistema de ledger financeiro distribuído de nível mundial, implementando padrões avançados de engenharia para garantir integridade total de dados em transações entre microserviços.
 
 ## 🎯 O Problema que Este Sistema Resolve
+
 Em sistemas financeiros distribuídos, como garantir que o dinheiro saiu de uma conta **e** entrou na outra, mesmo que a rede caia ou um servidor exploda no meio do processo?
 
 Este projeto responde a essa pergunta com uma arquitetura robusta e battle-tested.
@@ -9,34 +11,70 @@ Este projeto responde a essa pergunta com uma arquitetura robusta e battle-teste
 ---
 
 ## 🏗️ Arquitetura
+
 ```
-┌─────────────────────────────────────────────────────┐
-│                    API GATEWAY                       │
-│         POST /transfers {idempotencyKey}             │
-└──────────────────────┬──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    API GATEWAY (Porta 8080)                  │
+│  • Rate Limiting (100 req/s)                                │
+│  • Circuit Breaker                                          │
+│  • Autenticação JWT                                         │
+│  • Swagger/OpenAPI                                          │
+└──────────────────────┬──────────────────────────────────────┘
                        │
                        ▼
-┌─────────────────────────────────────────────────────┐
-│           TRANSFER SERVICE (Orquestrador)            │
-│  • Verifica idempotência (Redis)                     │
-│  • Inicia SagaExecution                              │
-│  • Persiste evento no Outbox (mesma TX)              │
-└──────────┬──────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│           TRANSFER SERVICE (Orquestrador)                   │
+│  • Verifica idempotência (Redis)                            │
+│  • Inicia SagaExecution                                    │
+│  • Persiste evento no Outbox (mesma TX)                    │
+│  • Métricas de negócio                                      │
+└──────────┬──────────────────────────────────────────────────┘
            │ Kafka
      ┌─────┴──────┐
      ▼            ▼
 ┌─────────┐  ┌──────────┐
 │ ACCOUNT │  │ RESERVE  │
 │ SERVICE │  │ SERVICE  │
-│ (débito)│  │(crédito) │
+│(débito)│  │(crédito) │
 └─────────┘  └──────────┘
 ```
 
 ---
 
+## Novas Funcionalidades Adicionadas
+
+### API Gateway
+- **Spring Cloud Gateway** com roteamento dinâmico
+- **Rate Limiting** usando Redis (100 req/s, burst 200)
+- **Circuit Breaker** com Resilience4j
+- **Autenticação JWT** para todas as APIs
+- Documentação **Swagger/OpenAPI** unificada
+
+### Documentação API
+- Swagger UI disponível em `/swagger-ui.html`
+- OpenAPI specs em `/v3/api-docs`
+- Suporte a autenticação Bearer JWT na UI
+
+### Validação Robusta
+- Bean Validation em todos os endpoints
+- GlobalExceptionHandler para tratamento centralizado
+- Mensagens de erro detalhadas
+
+### Observabilidade
+- **Métricas de negócio**: transferências iniciadas, concluídas, falhadas, compensadas
+- **Timing**: tempo de processamento das transferências
+- Tracing distribuído com Zipkin
+
+### Resiliência
+- **Dead Letter Queue (DLQ)** para mensagens falhadas
+- Retry com Exponential Backoff
+- Circuit Breaker em todos os serviços
+
+---
+
 ## Padrões e Conceitos Implementados
 
-### 🔄 Saga Pattern (Orquestrado)
+### Saga Pattern (Orquestrado)
 Gerencia transações distribuídas garantindo que o dinheiro nunca "desapareça". Se o crédito falhar, o débito é estornado automaticamente.
 ```
 HAPPY PATH:
@@ -46,41 +84,44 @@ FAILURE PATH:
 STARTED → DEBIT_REQUESTED → DEBIT_PERFORMED → CREDIT_FAILED → COMPENSATING → COMPENSATED ↩️
 ```
 
-### 📬 Outbox Pattern
+### Outbox Pattern
 Garante que eventos **nunca se percam** entre o banco e o Kafka. O evento é salvo na mesma transação do negócio e publicado por um worker assíncrono.
 
-### 🔑 Idempotência Absoluta
+### Idempotência Absoluta
 Se o cliente enviar a mesma requisição duas vezes, o sistema reconhece e retorna a resposta original — sem cobrar duas vezes.
 
-### 📋 Audit Log Imutável
+### Audit Log Imutável
 Cada centavo movimentado gera um registro com checksum SHA-256. Qualquer adulteração é detectada instantaneamente.
 
-### ⚡ Resiliência
+### Resiliência
 - **Circuit Breaker** — para de tentar quando o sistema está sobrecarregado
 - **Retry com Exponential Backoff** — tenta novamente com intervalos crescentes
 - **Dead Letter Queue** — mensagens problemáticas são isoladas sem parar o sistema
 - **Saga Timeout Handler** — Sagas presas há mais de 30 minutos são finalizadas automaticamente
+- **Rate Limiting** — previne sobrecarga do sistema
 
 ---
 
-## 🛠️ Stack Tecnológica
+## Stack Tecnológica
 
 | Tecnologia | Versão | Uso |
 |---|---|---|
 | Java | 21 | Linguagem principal |
 | Spring Boot | 3.2.5 | Framework |
+| Spring Cloud Gateway | 2023.0.1 | API Gateway |
 | PostgreSQL | 16 | Banco de dados |
 | Apache Kafka | 3.6 | Mensageria |
-| Redis | 7 | Idempotência |
+| Redis | 7 | Rate Limiting + Idempotência |
 | Resilience4j | 2.2 | Circuit Breaker / Retry |
 | OpenTelemetry | 1.31 | Distributed Tracing |
 | Zipkin | 3 | Visualização de traces |
 | Flyway | 9.22 | Migrations |
 | Testcontainers | - | Testes de integração |
+| springdoc OpenAPI | 2.3.0 | Documentação API |
 
 ---
 
-## 🚀 Como Executar
+## Como Executar
 
 ### Pré-requisitos
 - Java 21
@@ -104,25 +145,36 @@ mvn test
 
 ### 4. Iniciar os serviços
 ```bash
-# Terminal 1
-java -jar account-service/target/account-service-1.0.0-SNAPSHOT.jar
+# Terminal 1 - API Gateway (inicie primeiro!)
+java -jar gateway-service/target/gateway-service-1.0.0-SNAPSHOT.jar
 
 # Terminal 2
-java -jar transfer-service/target/transfer-service-1.0.0-SNAPSHOT.jar
+java -jar account-service/target/account-service-1.0.0-SNAPSHOT.jar
 
 # Terminal 3
+java -jar transfer-service/target/transfer-service-1.0.0-SNAPSHOT.jar
+
+# Terminal 4
 java -jar reserve-service/target/reserve-service-1.0.0-SNAPSHOT.jar
 ```
 
 ---
 
-## 📡 Endpoints
+## Endpoints
 
-### Transfer Service (8080)
+### API Gateway (8080)
+```bash
+# Todas as requisições passam pelo gateway com autenticação JWT
+# Header obrigatório: Authorization: Bearer <token_jwt>
+```
+
+### Transfer Service (8082)
 ```bash
 # Iniciar uma transferência
 POST /transfers
-Headers: X-Idempotency-Key: {uuid}
+Headers: 
+  X-Idempotency-Key: {uuid}
+  Authorization: Bearer {jwt_token}
 Body: {
   "fromAccountId": "uuid",
   "toAccountId": "uuid",
@@ -131,7 +183,7 @@ Body: {
 }
 ```
 
-### Account Service (8081)
+### Account Service (8083)
 ```bash
 # Histórico de uma conta
 GET /audit/accounts/{accountId}
@@ -145,6 +197,18 @@ GET /audit/accounts/{accountId}/integrity
 
 ---
 
+## 📖 Documentação API (Swagger)
+
+Acesse a documentação interativa:
+
+| Serviço | URL |
+|---------|-----|
+| Gateway | http://localhost:8080/swagger-ui.html |
+| Transfer Service | http://localhost:8082/swagger-ui.html |
+| Account Service | http://localhost:8083/swagger-ui.html |
+
+---
+
 ## 🔍 Observabilidade
 
 | Ferramenta | URL | Descrição |
@@ -152,6 +216,17 @@ GET /audit/accounts/{accountId}/integrity
 | Kafka UI | http://localhost:8090 | Monitorar tópicos e mensagens |
 | Zipkin | http://localhost:9411 | Distributed tracing |
 | Actuator | http://localhost:808x/actuator | Métricas e saúde |
+
+### Métricas de Negócio
+```
+# Prometheus metrics disponíveis em /actuator/prometheus
+
+transfers_initiated_total      - Total de transferências iniciadas
+transfers_completed_total      - Total concluídas com sucesso
+transfers_failed_total         - Total falhadas
+transfers_compensated_total    - Total compensadas (rollback)
+transfers_duration_seconds     - Tempo de processamento
+```
 
 ---
 
@@ -165,6 +240,12 @@ Sem o Outbox, existe uma janela de falha entre salvar no banco e publicar no Kaf
 
 ### Por que Redis para idempotência e não só o banco?
 Redis garante atomicidade via `SETIFABSENT` em O(1). Dois requests idênticos chegando simultaneamente — apenas um registra a chave. O banco é o fallback caso o Redis esteja fora.
+
+### Por que API Gateway?
+- **Segurança centralizada**: autenticação JWT em um único ponto
+- **Rate limiting**: previne ataques DDoS e sobrecarga
+- **Circuit breaker**: proteção em cascata entre serviços
+- **Roteamento dinámico**: facilita mudanças de arquitetura
 
 ---
 
