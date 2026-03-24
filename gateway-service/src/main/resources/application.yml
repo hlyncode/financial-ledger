@@ -31,8 +31,8 @@ server:
   port: 8080
 
 jwt:
-  secret: financialLedgerSecretKey2024VeryLongSecretKeyForHS256Algorithm
-  expiration: 86400000 
+  secret: ${JWT_SECRET:financialLedgerSecretKey2024VeryLongSecretKeyForHS256Algorithm}
+  expiration: ${JWT_EXPIRATION:86400000} 
 spring.cloud.gateway.redis-rate-limiter:
   replenish-rate: 100
   burst-capacity: 200
