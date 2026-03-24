@@ -249,6 +249,36 @@ Redis garante atomicidade via `SETIFABSENT` em O(1). Dois requests idênticos ch
 
 ---
 
+## 🔧 Variáveis de Ambiente
+
+O projeto suporta configurações via variáveis de ambiente. Copie o arquivo `.env.example` para `.env` e configure os valores.
+
+| Variável | Padrão | Descrição |
+|----------|--------|------------|
+| `DB_HOST` | localhost | Host do banco de dados PostgreSQL |
+| `DB_PORT` | 5432 | Porta do PostgreSQL |
+| `DB_NAME` | ledger_db | Nome do banco de dados |
+| `DB_USERNAME` | ledger_user | Usuário do banco de dados |
+| `DB_PASSWORD` | ledger_secret | Senha do banco de dados |
+| `JWT_SECRET` | (padrão) | Chave secreta para JWT |
+| `JWT_EXPIRATION` | 86400000 | Tempo de expiração do JWT (ms) |
+| `KAFKA_BOOTSTRAP_SERVERS` | localhost:9092 | Servidores Kafka |
+| `REDIS_HOST` | localhost | Host do Redis |
+| `REDIS_PORT` | 6379 | Porta do Redis |
+| `ZIPKIN_ENDPOINT` | http://localhost:9411/api/v2/spans | Endpoint do Zipkin |
+
+### Uso com Docker Compose
+
+```bash
+# Criar arquivo .env com suas configurações
+cp .env.example .env
+
+# Iniciar os serviços
+docker-compose up -d
+```
+
+---
+
 ## 👩‍💻 Autora
 
 **Hellen** [@hlyncode](https://github.com/hlyncode)
